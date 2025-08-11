@@ -92,3 +92,18 @@ export {
   withRetry,
   ClaudeRetryExecutor
 } from './enhanced/index.js';
+
+// Export authentication functionality
+export {
+  ClaudeAuth,
+  AnthropicAuth,
+  ExchangeFailed,
+  auth,
+  startAuth,
+  getAccessToken,
+  isAuthenticated,
+  logout,
+  type AuthCredentials,
+  type AuthOptions,
+  type AuthFlowResult
+} from './auth/index.js';

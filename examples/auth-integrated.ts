@@ -8,10 +8,10 @@ async function main() {
   // await setupAuth(); 
   
   // Or explicitly specify options:
-  // await setupAuth({ 
-  //   overwriteExisting: false,  // Don't overwrite if credentials exist
-  //   autoRefresh: true 
-  // });
+  await setupAuth({ 
+    overwriteExisting: false,  // Don't overwrite if credentials exist
+    autoRefresh: true 
+  });
 
   // Method 2: Use auth with fluent API
   try {

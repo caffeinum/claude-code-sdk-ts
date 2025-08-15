@@ -3,7 +3,6 @@ import { OAuthCredentials, validateCredentials } from './validation.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
-import { createInterface } from 'readline';
 
 export interface AuthOptions {
   credentialsPath?: string;
@@ -177,90 +176,3 @@ export class Auth {
   }
 }
 
-/**
- * Interactive authentication setup
- * 
- * By default, writes to ~/.claude/.credentials.json to integrate with Claude CLI.
- * This means both the SDK and CLI will use the same authentication.
- */
-export async function setupAuth(options?: AuthOptions): Promise<void> {
-  const auth = new Auth(options);
-  const isCliPath = auth.getCredentialsPath().includes('.claude');
-
-  // Check if already authenticated
-  const existing = await auth.isValid();
-  if (existing) {
-    console.log('✅ Already authenticated!');
-    if (isCliPath) {
-      console.log('📍 Using Claude CLI credentials at:', auth.getCredentialsPath());
-    }
-    return;
-  }
-
-  console.log('🔐 Starting authentication setup...');
-  if (isCliPath) {
-    console.log('📍 Will save to Claude CLI credentials:', auth.getCredentialsPath());
-    console.log('   Both SDK and CLI will use these credentials.\n');
-  } else {
-    console.log('📍 Will save to:', auth.getCredentialsPath(), '\n');
-  }
-
-  // Start login flow
-  const { url, complete } = await auth.login();
-
-  console.log('📋 Please follow these steps:');
-  console.log('1. Open this URL in your browser:');
-  console.log(`   ${url}\n`);
-  console.log('2. Sign in to your Anthropic account');
-  console.log('3. Authorize the application');
-  console.log('4. Copy the authorization code from the callback page\n');
-
-  // Get code from user
-  const code = await prompt('📝 Paste the authorization code here: ');
-  
-  try {
-    await complete(code);
-    console.log('\n✅ Authentication successful!');
-    console.log(`🔑 Credentials stored in ${auth.getCredentialsPath()}`);
-  } catch (error) {
-    console.error('\n❌ Authentication failed:', error instanceof Error ? error.message : String(error));
-    throw error;
-  }
-}
-
-/**
- * Quick authentication helper
- */
-export async function quickAuth(storage = './.auth.json'): Promise<void> {
-  const auth = new Auth(storage);
-  
-  if (await auth.isValid()) {
-    console.log('✅ Already authenticated');
-    return;
-  }
-
-  const { url, complete } = await auth.login();
-  console.log(`🔗 Authenticate at: ${url}`);
-  
-  const code = await prompt('📝 Enter code: ');
-  await complete(code);
-  
-  console.log('✅ Authentication complete!');
-}
-
-/**
- * Helper to prompt user for input
- */
-function prompt(question: string): Promise<string> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
-}

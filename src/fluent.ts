@@ -15,7 +15,7 @@ import { Logger } from './logger.js';
 import { PermissionManager } from './permissions/manager.js';
 import { ConfigLoader } from './config/loader.js';
 import { RoleManager } from './roles/manager.js';
-import type { AuthOptions } from './auth/auth.js';
+import { Auth, type AuthOptions } from './auth/auth.js';
 
 /**
  * Fluent API for building Claude Code queries with chainable methods
@@ -33,7 +33,7 @@ import type { AuthOptions } from './auth/auth.js';
  * ```
  */
 export class QueryBuilder {
-  private options: ClaudeCodeOptions = {};
+  private options: ClaudeCodeOptions & { authOptions?: AuthOptions | string } = {};
   private messageHandlers: Array<(message: Message) => void> = [];
   private logger?: Logger;
   private permissionManager: PermissionManager;
@@ -57,14 +57,13 @@ export class QueryBuilder {
   }
 
   /**
-   * Configure authentication (placeholder for future integration)
+   * Configure authentication - ensures valid credentials before query execution
    * @param options Authentication options or path to credentials file
-   * @note Currently auth is handled by the CLI. Use setupAuth() separately.
+   * @note Writes to ~/.claude/credentials.json by default for CLI integration
    */
-  withAuth(_options?: AuthOptions | string): this {
-    // TODO: Full integration pending internal client updates
-    // For now, use setupAuth() to configure authentication
-    console.warn('withAuth() integration pending. Use setupAuth() for authentication.');
+  withAuth(options?: AuthOptions | string): this {
+    // Store auth options to be used when query is executed
+    this.options.authOptions = options;
     return this;
   }
 
@@ -327,6 +326,21 @@ export class QueryBuilder {
    * Execute query and return response parser
    */
   query(prompt: string): ResponseParser {
+    // Handle authentication if configured
+    if (this.options.authOptions !== undefined) {
+      // Create a generator that first handles auth, then executes the query
+      const authAndQuery = async function* (this: QueryBuilder) {
+        await this.ensureAuthenticated(this.options.authOptions);
+        yield* this.queryRaw(prompt);
+      }.bind(this);
+      
+      return new ResponseParser(authAndQuery(), this.messageHandlers, this.logger);
+    }
+    
+    return this.executeQuery(prompt);
+  }
+  
+  private executeQuery(prompt: string): ResponseParser {
     // Apply MCP server permissions
     const finalOptions = this.permissionManager.applyToOptions(this.options);
     
@@ -353,6 +367,69 @@ export class QueryBuilder {
       this.logger
     );
     return parser;
+  }
+  
+  /**
+   * Ensure authentication is set up
+   */
+  private async ensureAuthenticated(options?: AuthOptions | string): Promise<void> {
+    const auth = new Auth(options);
+    
+    // Check if already authenticated
+    if (await auth.isValid()) {
+      return;
+    }
+    
+    // Interactive authentication if not already authenticated
+    const isCliPath = auth.getCredentialsPath().includes('.claude');
+    
+    console.log('🔐 Authentication required...');
+    if (isCliPath) {
+      console.log('📍 Will save to Claude CLI credentials:', auth.getCredentialsPath());
+      console.log('   Both SDK and CLI will use these credentials.\n');
+    } else {
+      console.log('📍 Will save to:', auth.getCredentialsPath(), '\n');
+    }
+    
+    // Start login flow
+    const { url, complete } = await auth.login();
+    
+    console.log('📋 Please follow these steps:');
+    console.log('1. Open this URL in your browser:');
+    console.log(`   ${url}\n`);
+    console.log('2. Sign in to your Anthropic account');
+    console.log('3. Authorize the application');
+    console.log('4. Copy the authorization code from the callback page\n');
+    
+    // Get code from user
+    const code = await this.prompt('📝 Paste the authorization code here: ');
+    
+    try {
+      await complete(code);
+      console.log('\n✅ Authentication successful!');
+      console.log(`🔑 Credentials stored in ${auth.getCredentialsPath()}`);
+    } catch (error) {
+      console.error('\n❌ Authentication failed:', error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  }
+  
+  /**
+   * Helper to prompt user for input
+   */
+  private prompt(question: string): Promise<string> {
+    const readline = require('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    
+    return new Promise((resolve) => {
+      rl.question(question, (answer: string) => {
+        rl.close();
+        resolve(answer);
+      });
+    });
   }
 
   /**

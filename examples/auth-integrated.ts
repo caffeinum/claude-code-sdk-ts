@@ -1,23 +1,14 @@
-import { claude, setupAuth, Auth } from '@instantlyeasy/claude-code-sdk-ts';
+import { claude, Auth } from '@instantlyeasy/claude-code-sdk-ts';
 
 async function main() {
   console.log('Claude Code SDK - Integrated Authentication Example\n');
 
-  // Method 1: Quick setup with interactive flow (integrates with CLI)
-  // This writes to ~/.claude/.credentials.json by default
-  // await setupAuth(); 
-  
-  // Or explicitly specify options:
-  await setupAuth({ 
-    overwriteExisting: false,  // Don't overwrite if credentials exist
-    autoRefresh: true 
-  });
-
-  // Method 2: Use auth with fluent API
+  // Method 1: Use auth with fluent API
+  // This automatically handles authentication if needed
   try {
-    // Simple usage - auto loads from ./.auth.json
+    // Simple usage - auto handles auth to ~/.claude/credentials.json (CLI integration)
     const response1 = await claude()
-      .withAuth() // Auto-loads from ./.auth.json
+      .withAuth() // Auto-authenticates if needed, uses CLI credentials
       .withModel('sonnet')
       .query('Say hello!')
       .asText();
@@ -46,14 +37,11 @@ async function main() {
 
   } catch (error) {
     if (error.message.includes('Not authenticated')) {
-      console.log('\n❌ Not authenticated. Running setup...\n');
+      console.log('\n❌ Not authenticated. Please run with auth...\n');
       
-      // Run interactive setup if not authenticated
-      await setupAuth({ credentialsPath: './.auth.json' });
-      
-      // Retry the query
+      // Retry the query with auth
       const response = await claude()
-        .withAuth()
+        .withAuth({ credentialsPath: './.auth.json' })
         .query('Say hello!')
         .asText();
       
@@ -63,7 +51,7 @@ async function main() {
     }
   }
 
-  // Method 3: Direct auth management for advanced use cases
+  // Method 2: Direct auth management for advanced use cases
   const auth = new Auth('./.auth.json');
   
   if (await auth.isValid()) {
@@ -84,7 +72,7 @@ async function main() {
     // await complete(code);
   }
 
-  // Method 4: Session with auth
+  // Method 3: Session with auth
   const session = claude()
     .withAuth()
     .withModel('sonnet')

@@ -1,4 +1,6 @@
 import { InternalClient } from './_internal/client.js';
+import { AuthAnthropic } from './auth-flow/anthropic.js';
+import { Auth } from './auth-flow/index.js';
 import type { ClaudeCodeOptions, Message } from './types.js';
 
 /**
@@ -93,17 +95,5 @@ export {
   ClaudeRetryExecutor
 } from './enhanced/index.js';
 
-// Export authentication functionality
-export {
-  ClaudeAuth,
-  AnthropicAuth,
-  ExchangeFailed,
-  auth,
-  startAuth,
-  getAccessToken,
-  isAuthenticated,
-  logout,
-  type AuthCredentials,
-  type AuthOptions,
-  type AuthFlowResult
-} from './auth/index.js';
+
+export { Auth, AuthAnthropic };

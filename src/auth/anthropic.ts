@@ -25,7 +25,7 @@ export class ExchangeFailed extends Error {
 
 export class AnthropicAuth {
   private static readonly DEFAULT_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
-  private static readonly REDIRECT_URI = 'https://localhost:9000/callback';
+  private static readonly REDIRECT_URI = 'https://console.anthropic.com/oauth/code/callback';
   private static readonly SCOPES = ['org:create_api_key', 'user:profile', 'user:inference'];
   private static readonly CREDENTIALS_PATH = join(homedir(), '.claude', 'credentials.json');
 
@@ -57,8 +57,9 @@ export class AnthropicAuth {
     const { codeVerifier, codeChallenge } = this.generatePKCE();
     
     const params = new URLSearchParams({
-      response_type: 'code',
+      code: 'true',
       client_id: this.clientId,
+      response_type: 'code',
       redirect_uri: AnthropicAuth.REDIRECT_URI,
       scope: AnthropicAuth.SCOPES.join(' '),
       code_challenge: codeChallenge,
@@ -66,7 +67,7 @@ export class AnthropicAuth {
       state: randomBytes(16).toString('hex')
     });
 
-    const url = `https://console.anthropic.com/oauth/authorize?${params.toString()}`;
+    const url = `https://claude.ai/oauth/authorize?${params.toString()}`;
     
     return { url, codeVerifier };
   }
@@ -84,7 +85,7 @@ export class AnthropicAuth {
     });
 
     try {
-      const response = await fetch('https://console.anthropic.com/oauth/token', {
+      const response = await fetch('https://claude.ai/api/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -129,7 +130,7 @@ export class AnthropicAuth {
     });
 
     try {
-      const response = await fetch('https://console.anthropic.com/oauth/token', {
+      const response = await fetch('https://claude.ai/api/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'

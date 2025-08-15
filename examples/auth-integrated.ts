@@ -41,7 +41,7 @@ async function main() {
   try {
     // Simple usage - validates credentials exist
     const response1 = await claude()
-      .withAuth() // Validates ~/.claude/credentials.json exists
+      .withAuth() // Validates ~/.claude/.credentials.json exists
       .withModel('sonnet')
       .query('Say hello!')
       .asText();

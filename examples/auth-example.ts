@@ -6,7 +6,7 @@ async function main() {
 
   // Method 1: setupAuth returns url and complete function
   console.log("Method 1: Setup authentication flow");
-  const { url, complete } = await setupAuth(); // Defaults to ~/.claude/credentials.json
+  const { url, complete } = await setupAuth(); // Defaults to ~/.claude/.credentials.json
   
   if (url) {
     // Developer decides how to handle the URL
@@ -29,7 +29,7 @@ async function main() {
   console.log("\nMethod 2: Using withAuth() to verify credentials");
   try {
     const response = await claude()
-      .withAuth() // Checks ~/.claude/credentials.json exists
+      .withAuth() // Checks ~/.claude/.credentials.json exists
       .query('Say hello!')
       .asText();
     

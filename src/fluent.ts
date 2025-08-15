@@ -15,6 +15,7 @@ import { Logger } from './logger.js';
 import { PermissionManager } from './permissions/manager.js';
 import { ConfigLoader } from './config/loader.js';
 import { RoleManager } from './roles/manager.js';
+import { Auth, type AuthOptions } from './auth/auth.js';
 
 /**
  * Fluent API for building Claude Code queries with chainable methods
@@ -32,7 +33,7 @@ import { RoleManager } from './roles/manager.js';
  * ```
  */
 export class QueryBuilder {
-  private options: ClaudeCodeOptions = {};
+  private options: ClaudeCodeOptions & { authOptions?: AuthOptions | string } = {};
   private messageHandlers: Array<(message: Message) => void> = [];
   private logger?: Logger;
   private permissionManager: PermissionManager;
@@ -52,6 +53,17 @@ export class QueryBuilder {
    */
   withModel(model: string): this {
     this.options.model = model;
+    return this;
+  }
+
+  /**
+   * Configure authentication options for later use
+   * @param options Authentication options or path to credentials file
+   * @note Does NOT automatically authenticate - use setupAuth() first
+   */
+  withAuth(options?: AuthOptions | string): this {
+    // Store auth options to be validated when query is executed
+    this.options.authOptions = options;
     return this;
   }
 
@@ -314,6 +326,21 @@ export class QueryBuilder {
    * Execute query and return response parser
    */
   query(prompt: string): ResponseParser {
+    // Check authentication if configured
+    if (this.options.authOptions !== undefined) {
+      // Create a generator that first checks auth, then executes the query
+      const authAndQuery = async function* (this: QueryBuilder) {
+        await this.checkAuthenticated(this.options.authOptions);
+        yield* this.queryRaw(prompt);
+      }.bind(this);
+      
+      return new ResponseParser(authAndQuery(), this.messageHandlers, this.logger);
+    }
+    
+    return this.executeQuery(prompt);
+  }
+  
+  private executeQuery(prompt: string): ResponseParser {
     // Apply MCP server permissions
     const finalOptions = this.permissionManager.applyToOptions(this.options);
     
@@ -340,6 +367,24 @@ export class QueryBuilder {
       this.logger
     );
     return parser;
+  }
+  
+  /**
+   * Check authentication is valid
+   */
+  private async checkAuthenticated(options?: AuthOptions | string): Promise<void> {
+    const auth = new Auth(options);
+    
+    // Check if already authenticated
+    if (await auth.isValid()) {
+      return;
+    }
+    
+    // Throw error if not authenticated
+    throw new Error(
+      `Not authenticated. Please run setupAuth() first to authenticate.\n` +
+      `Credentials path: ${auth.getCredentialsPath()}`
+    );
   }
 
   /**

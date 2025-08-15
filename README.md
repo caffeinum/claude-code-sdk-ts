@@ -90,7 +90,7 @@ node examples/auth-example.js
 
 The programmatic auth flow:
 1. Generates a secure OAuth URL with PKCE
-2. Stores credentials in `~/.claude/credentials.json`
+2. Stores credentials in `~/.claude/.credentials.json`
 3. Automatically handles token refresh
 4. Provides convenient helper functions
 

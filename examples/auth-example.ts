@@ -1,121 +1,95 @@
-import {
-  AuthAnthropic,
-  OAuthCredentials,
-  validateCredentials,
-} from "@instantlyeasy/claude-code-sdk-ts";
+import { claude, Auth, setupAuth } from "@instantlyeasy/claude-code-sdk-ts";
 import { createInterface } from "readline";
-import * as fs from "fs/promises";
-import * as path from "path";
-
-const CREDENTIALS_FILE = "./credentials.json";
 
 async function main() {
   console.log("Claude Code SDK - Authentication Example\n");
 
-  // Helper function to load credentials from file
-  async function loadCredentials(): Promise<Record<string, OAuthCredentials>> {
-    try {
-      const data = await fs.readFile(CREDENTIALS_FILE, "utf-8");
-      return JSON.parse(data);
-    } catch {
-      return {};
-    }
-  }
-
-  // Helper function to save credentials to file
-  async function saveCredentials(providerID: string, credentials: OAuthCredentials) {
-    const allCreds = await loadCredentials();
-    allCreds[providerID] = credentials;
-    await fs.writeFile(CREDENTIALS_FILE, JSON.stringify(allCreds, null, 2));
-    await fs.chmod(CREDENTIALS_FILE, 0o600);
-  }
-
-  // Helper function to get valid access token
-  async function getAccessToken() {
-    const allCreds = await loadCredentials();
-    const info = allCreds["anthropic"];
+  // Method 1: setupAuth returns url and complete function
+  console.log("Method 1: Setup authentication flow");
+  const { url, complete } = await setupAuth(); // Defaults to ~/.claude/.credentials.json
+  
+  if (url) {
+    // Developer decides how to handle the URL
+    console.log('Please authenticate:');
+    console.log('1. Open this URL in your browser:');
+    console.log(`   ${url}\n`);
+    console.log('2. Sign in to your Anthropic account');
+    console.log('3. Authorize the application');
+    console.log('4. Copy the authorization code\n');
     
-    if (!info || info.type !== "oauth") return null;
-
-    // Check if access token is still valid
-    if (info.access && info.expires > Date.now()) {
-      return info.access;
-    }
-
-    // Refresh the token
-    try {
-      const credentials = await AuthAnthropic.refresh(info.refresh);
-      const validatedCreds: OAuthCredentials = {
-        type: "oauth",
-        refresh: credentials.refresh,
-        access: credentials.access,
-        expires: credentials.expires,
-      };
-      await saveCredentials("anthropic", validatedCreds);
-      return credentials.access;
-    } catch (error) {
-      console.error("❌ Failed to refresh token:", error.message);
-      return null;
-    }
+    // Developer decides how to get the code
+    const code = await prompt('Enter code: ');
+    await complete(code);
+    console.log('✅ Authentication complete!');
+  } else {
+    console.log('✅ Already authenticated');
   }
 
-  // Check if already authenticated
-  const existingToken = await getAccessToken();
-  if (existingToken) {
-    console.log("✅ Already authenticated!");
-    console.log(`🔑 Access token: ${existingToken.substring(0, 20)}...`);
-    console.log("✅ Authentication working correctly!");
-    return;
-  }
-
-  console.log("🔐 Starting authentication flow...\n");
-
-  // Start the auth flow
-  const { url, verifier } = await AuthAnthropic.authorize("max");
-
-  console.log("📋 Please follow these steps:");
-  console.log("1. Open this URL in your browser:");
-  console.log(`   ${url}\n`);
-  console.log("2. Sign in to your Anthropic account");
-  console.log("3. Authorize the application");
-  console.log("4. Copy the authorization code from the callback page\n");
-
-  let code;
-  while (true) {
-    code = await askQuestion("📝 Paste the authorization code here: ");
-    if (!code) {
-      console.log("❌ No code provided");
-      continue;
-    }
-    break;
-  }
-
+  // Method 2: Use with fluent API (requires auth to be set up first)
+  console.log("\nMethod 2: Using withAuth() to verify credentials");
   try {
-    console.log("🔄 Exchanging code for tokens...");
-    const credentials = await AuthAnthropic.exchange(code.trim(), verifier);
-
-    const validatedCreds: OAuthCredentials = {
-      type: "oauth",
-      refresh: credentials.refresh,
-      access: credentials.access,
-      expires: credentials.expires,
-    };
+    const response = await claude()
+      .withAuth() // Checks ~/.claude/.credentials.json exists
+      .query('Say hello!')
+      .asText();
     
-    await saveCredentials("anthropic", validatedCreds);
-
-    console.log("✅ Authentication successful!");
-    console.log(`🔑 Credentials stored in ${path.resolve(CREDENTIALS_FILE)}`);
-
-    // Verify by getting access token
-    const token = await getAccessToken();
-    console.log(`🎉 Access token obtained: ${token?.substring(0, 20)}...`);
+    console.log('Response:', response);
   } catch (error) {
-    console.error("❌ Authentication failed:", error.message);
-    process.exit(1);
+    console.error('Error:', error.message);
+    console.log('Run setupAuth() first to authenticate');
+  }
+
+  // Method 3: Custom credentials path with setupAuth
+  console.log("\nMethod 3: Custom credentials location");
+  const customAuth = await setupAuth('./my-auth.json');
+  
+  if (customAuth.url) {
+    // In a web app, you might do:
+    // window.open(customAuth.url);
+    // const code = window.prompt('Enter code:');
+    // await customAuth.complete(code);
+    
+    console.log('Auth URL:', customAuth.url);
+    // Skip actual auth for demo
+  }
+
+  // Method 4: Direct Auth class for full control
+  console.log("\nMethod 4: Direct Auth class usage");
+  const auth = new Auth({
+    credentialsPath: './advanced-auth.json',
+    autoRefresh: true,
+    overwriteExisting: false
+  });
+  
+  if (await auth.isValid()) {
+    console.log('✅ Valid credentials found');
+    const token = await auth.getToken();
+    console.log('Token preview:', token.substring(0, 20) + '...');
+  } else {
+    console.log('❌ No valid credentials');
+    
+    // Start auth flow
+    const flow = await auth.login();
+    console.log('Visit:', flow.url);
+    // const code = await getUserInput();
+    // await flow.complete(code);
+  }
+
+  // Method 5: Check if CLI is authenticated
+  console.log("\nMethod 5: Check CLI authentication");
+  const cliAuth = new Auth(); // Uses CLI default path
+  
+  if (await cliAuth.isValid()) {
+    console.log('✅ CLI is authenticated');
+    console.log('📍 Credentials at:', cliAuth.getCredentialsPath());
+  } else {
+    console.log('❌ CLI not authenticated');
+    console.log('   Run setupAuth() to configure');
   }
 }
 
-function askQuestion(question) {
+// Helper function for CLI input
+function prompt(question: string): Promise<string> {
   const rl = createInterface({
     input: process.stdin,
     output: process.stdout,

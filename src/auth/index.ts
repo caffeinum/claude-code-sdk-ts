@@ -1,99 +1,52 @@
-import { AnthropicAuth, type AuthCredentials, type AuthOptions } from './anthropic.js';
+/* eslint-disable @typescript-eslint/no-namespace */
+import path from "path";
+import fs from "fs/promises";
+import { z } from "zod";
+import { homedir } from "os";
 
-export interface AuthFlowResult {
-  url: string;
-  waitForCode: (code: string) => Promise<void>;
-}
+export namespace Auth {
+  export const Oauth = z.object({
+    type: z.literal("oauth"),
+    refresh: z.string(),
+    access: z.string(),
+    expires: z.number(),
+  });
 
-export class ClaudeAuth {
-  private auth: AnthropicAuth;
+  export const Api = z.object({
+    type: z.literal("api"),
+    key: z.string(),
+  });
 
-  constructor(options?: AuthOptions) {
-    this.auth = new AnthropicAuth(options);
+  export const Info = z.discriminatedUnion("type", [Oauth, Api]);
+  export type Info = z.infer<typeof Info>;
+
+  const filepath = path.join(homedir(), ".claude", "auth.json");
+
+  export async function get(providerID: string) {
+    const file = Bun.file(filepath);
+    return file
+      .json()
+      .catch(() => ({}))
+      .then((x) => x[providerID] as Info | undefined);
   }
 
-  /**
-   * Start the authentication flow
-   * Returns the authorization URL and a function to complete the flow
-   */
-  public startAuthFlow(): AuthFlowResult {
-    const { url, codeVerifier } = this.auth.authorize();
-    
-    const waitForCode = async (code: string) => {
-      const credentials = await this.auth.exchange(code, codeVerifier);
-      await this.auth.storeCredentials(credentials);
-    };
-
-    return {
-      url,
-      waitForCode
-    };
+  export async function all(): Promise<Record<string, Info>> {
+    const file = Bun.file(filepath);
+    return file.json().catch(() => ({}));
   }
 
-  /**
-   * Get a valid access token
-   */
-  public async getAccessToken(): Promise<string> {
-    return this.auth.access();
+  export async function set(key: string, info: Info) {
+    const file = Bun.file(filepath);
+    const data = await all();
+    await Bun.write(file, JSON.stringify({ ...data, [key]: info }, null, 2));
+    await fs.chmod(file.name!, 0o600);
   }
 
-  /**
-   * Check if user is authenticated
-   */
-  public async isAuthenticated(): Promise<boolean> {
-    return this.auth.isAuthenticated();
+  export async function remove(key: string) {
+    const file = Bun.file(filepath);
+    const data = await all();
+    delete data[key];
+    await Bun.write(file, JSON.stringify(data, null, 2));
+    await fs.chmod(file.name!, 0o600);
   }
-
-  /**
-   * Logout and clear stored credentials
-   */
-  public async logout(): Promise<void> {
-    return this.auth.logout();
-  }
-
-  /**
-   * Get stored credentials (for advanced use cases)
-   */
-  public async getCredentials(): Promise<AuthCredentials | null> {
-    return this.auth.loadCredentials();
-  }
-}
-
-// Export types and classes
-export { AnthropicAuth, ExchangeFailed } from './anthropic.js';
-export type { AuthCredentials, AuthOptions } from './anthropic.js';
-
-// Create a default instance for convenience
-export const auth = new ClaudeAuth();
-
-/**
- * Convenience function to start auth flow
- */
-export function startAuth(options?: AuthOptions): AuthFlowResult {
-  const claudeAuth = new ClaudeAuth(options);
-  return claudeAuth.startAuthFlow();
-}
-
-/**
- * Convenience function to get access token
- */
-export async function getAccessToken(options?: AuthOptions): Promise<string> {
-  const claudeAuth = new ClaudeAuth(options);
-  return claudeAuth.getAccessToken();
-}
-
-/**
- * Convenience function to check authentication status
- */
-export async function isAuthenticated(options?: AuthOptions): Promise<boolean> {
-  const claudeAuth = new ClaudeAuth(options);
-  return claudeAuth.isAuthenticated();
-}
-
-/**
- * Convenience function to logout
- */
-export async function logout(options?: AuthOptions): Promise<void> {
-  const claudeAuth = new ClaudeAuth(options);
-  return claudeAuth.logout();
 }

@@ -1,6 +1,6 @@
 import { InternalClient } from './_internal/client.js';
-import { AuthAnthropic } from './auth-flow/anthropic.js';
-import { Auth } from './auth-flow/index.js';
+import { AuthAnthropic } from './auth/anthropic.js';
+import { Auth } from './auth/index.js';
 import type { ClaudeCodeOptions, Message } from './types.js';
 
 /**

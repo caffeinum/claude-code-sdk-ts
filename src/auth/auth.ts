@@ -11,7 +11,7 @@ export interface AuthOptions {
   overwriteExisting?: boolean; // Explicit permission to overwrite existing credentials
 }
 
-export interface LoginFlow {
+export interface AuthFlow {
   url: string;
   complete: (code: string) => Promise<void>;
 }
@@ -140,7 +140,7 @@ export class Auth {
   /**
    * Start login flow
    */
-  public async login(mode: 'max' | 'console' = 'max'): Promise<LoginFlow> {
+  public async login(mode: 'max' | 'console' = 'max'): Promise<AuthFlow> {
     const { url, verifier } = await AuthAnthropic.authorize(mode);
 
     const complete = async (code: string) => {
@@ -174,5 +174,37 @@ export class Auth {
   public getCredentialsPath(): string {
     return this.credentialsPath;
   }
+}
+
+/**
+ * Setup authentication flow - returns URL and complete function for developer to handle
+ * 
+ * @param options Authentication options
+ * @returns Object with url to open and complete function to call with the code
+ * 
+ * @example
+ * ```typescript
+ * const { url, complete } = await setupAuth();
+ * window.open(url); // or console.log(url) in CLI
+ * const code = await getUserInput(); // however you want to get it
+ * await complete(code);
+ * ```
+ */
+export async function setupAuth(options?: AuthOptions | string): Promise<AuthFlow> {
+  const auth = new Auth(options);
+  
+  // Check if already authenticated
+  if (await auth.isValid() && !auth['overwriteExisting']) {
+    // Return a no-op flow if already authenticated
+    return {
+      url: '',
+      complete: async () => {
+        console.log('Already authenticated');
+      }
+    };
+  }
+  
+  // Return the login flow for developer to handle
+  return auth.login();
 }
 

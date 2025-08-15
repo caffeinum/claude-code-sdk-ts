@@ -1,14 +1,47 @@
-import { claude, Auth } from '@instantlyeasy/claude-code-sdk-ts';
+import { claude, setupAuth, Auth } from '@instantlyeasy/claude-code-sdk-ts';
 
 async function main() {
   console.log('Claude Code SDK - Integrated Authentication Example\n');
 
-  // Method 1: Use auth with fluent API
-  // This automatically handles authentication if needed
+  // Step 1: Setup authentication (developer handles UI)
+  console.log('Step 1: Setting up authentication...');
+  const { url, complete } = await setupAuth({
+    overwriteExisting: false,  // Don't overwrite existing credentials
+    autoRefresh: true
+  });
+  
+  if (url) {
+    // Developer decides how to handle authentication
+    // In a web app:
+    //   window.open(url);
+    //   const code = await showModal('Enter auth code');
+    //   await complete(code);
+    
+    // In a CLI app:
+    console.log('Open this URL:', url);
+    // const readline = require('readline').createInterface({
+    //   input: process.stdin,
+    //   output: process.stdout
+    // });
+    // const code = await new Promise(resolve => {
+    //   readline.question('Enter code: ', answer => {
+    //     readline.close();
+    //     resolve(answer);
+    //   });
+    // });
+    // await complete(code);
+    
+    // For this example, we'll skip actual auth
+    console.log('(Skipping actual authentication for demo)\n');
+  } else {
+    console.log('Already authenticated!\n');
+  }
+
+  // Step 2: Use authenticated SDK
   try {
-    // Simple usage - auto handles auth to ~/.claude/credentials.json (CLI integration)
+    // Simple usage - validates credentials exist
     const response1 = await claude()
-      .withAuth() // Auto-authenticates if needed, uses CLI credentials
+      .withAuth() // Validates ~/.claude/credentials.json exists
       .withModel('sonnet')
       .query('Say hello!')
       .asText();
@@ -37,21 +70,20 @@ async function main() {
 
   } catch (error) {
     if (error.message.includes('Not authenticated')) {
-      console.log('\n❌ Not authenticated. Please run with auth...\n');
+      console.log('\n❌ Not authenticated. Please run setupAuth() first\n');
       
-      // Retry the query with auth
-      const response = await claude()
-        .withAuth({ credentialsPath: './.auth.json' })
-        .query('Say hello!')
-        .asText();
-      
-      console.log('Response after auth:', response);
+      // Setup auth and retry
+      const retryAuth = await setupAuth();
+      if (retryAuth.url) {
+        console.log('Please authenticate at:', retryAuth.url);
+        // Handle authentication...
+      }
     } else {
       console.error('Error:', error);
     }
   }
 
-  // Method 2: Direct auth management for advanced use cases
+  // Step 3: Direct auth management for advanced use cases
   const auth = new Auth('./.auth.json');
   
   if (await auth.isValid()) {
@@ -67,12 +99,12 @@ async function main() {
     const { url, complete } = await auth.login();
     console.log('Visit:', url);
     
-    // In real app, get code from user input
+    // Developer handles getting the code
     // const code = await getUserInput();
     // await complete(code);
   }
 
-  // Method 3: Session with auth
+  // Step 4: Session with auth
   const session = claude()
     .withAuth()
     .withModel('sonnet')

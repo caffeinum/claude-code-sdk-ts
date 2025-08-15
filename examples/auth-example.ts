@@ -1,79 +1,106 @@
-import { claude, Auth } from "@instantlyeasy/claude-code-sdk-ts";
+import { claude, Auth, setupAuth } from "@instantlyeasy/claude-code-sdk-ts";
+import { createInterface } from "readline";
 
 async function main() {
   console.log("Claude Code SDK - Authentication Example\n");
 
-  // Method 1: Simplest approach - auto-handles authentication
-  // This will prompt for authentication if needed, then execute the query
-  console.log("Method 1: Using withAuth() for automatic authentication");
+  // Method 1: setupAuth returns url and complete function
+  console.log("Method 1: Setup authentication flow");
+  const { url, complete } = await setupAuth(); // Defaults to ~/.claude/credentials.json
+  
+  if (url) {
+    // Developer decides how to handle the URL
+    console.log('Please authenticate:');
+    console.log('1. Open this URL in your browser:');
+    console.log(`   ${url}\n`);
+    console.log('2. Sign in to your Anthropic account');
+    console.log('3. Authorize the application');
+    console.log('4. Copy the authorization code\n');
+    
+    // Developer decides how to get the code
+    const code = await prompt('Enter code: ');
+    await complete(code);
+    console.log('✅ Authentication complete!');
+  } else {
+    console.log('✅ Already authenticated');
+  }
+
+  // Method 2: Use with fluent API (requires auth to be set up first)
+  console.log("\nMethod 2: Using withAuth() to verify credentials");
   try {
     const response = await claude()
-      .withAuth() // Automatically handles auth to ~/.claude/credentials.json
+      .withAuth() // Checks ~/.claude/credentials.json exists
       .query('Say hello!')
       .asText();
     
     console.log('Response:', response);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error:', error.message);
+    console.log('Run setupAuth() first to authenticate');
   }
 
-  // Method 2: Custom credentials path
-  console.log("\nMethod 2: Using custom credentials path");
-  try {
-    const response = await claude()
-      .withAuth('./my-auth.json') // Custom credentials location
-      .query('What can you help with?')
-      .asText();
+  // Method 3: Custom credentials path with setupAuth
+  console.log("\nMethod 3: Custom credentials location");
+  const customAuth = await setupAuth('./my-auth.json');
+  
+  if (customAuth.url) {
+    // In a web app, you might do:
+    // window.open(customAuth.url);
+    // const code = window.prompt('Enter code:');
+    // await customAuth.complete(code);
     
-    console.log('Response:', response);
-  } catch (error) {
-    console.error('Error:', error);
+    console.log('Auth URL:', customAuth.url);
+    // Skip actual auth for demo
   }
 
-  // Method 3: Direct auth management for advanced use cases
-  console.log("\nMethod 3: Direct auth management");
-  const auth = new Auth('./advanced-auth.json');
+  // Method 4: Direct Auth class for full control
+  console.log("\nMethod 4: Direct Auth class usage");
+  const auth = new Auth({
+    credentialsPath: './advanced-auth.json',
+    autoRefresh: true,
+    overwriteExisting: false
+  });
   
   if (await auth.isValid()) {
-    console.log('✅ Already authenticated');
+    console.log('✅ Valid credentials found');
     const token = await auth.getToken();
-    console.log('Token (first 20 chars):', token.substring(0, 20) + '...');
+    console.log('Token preview:', token.substring(0, 20) + '...');
   } else {
-    console.log('❌ Not authenticated');
+    console.log('❌ No valid credentials');
     
-    // Manual authentication flow
-    const { url, complete } = await auth.login();
-    console.log('Visit:', url);
-    console.log('\nFollow the steps:');
-    console.log('1. Sign in to your Anthropic account');
-    console.log('2. Authorize the application');
-    console.log('3. Copy the authorization code\n');
-    
-    // In a real app, you'd get the code from user input
-    // const readline = require('readline').createInterface({
-    //   input: process.stdin,
-    //   output: process.stdout
-    // });
-    // const code = await new Promise(resolve => {
-    //   readline.question('Enter code: ', answer => {
-    //     readline.close();
-    //     resolve(answer);
-    //   });
-    // });
-    // await complete(code);
+    // Start auth flow
+    const flow = await auth.login();
+    console.log('Visit:', flow.url);
+    // const code = await getUserInput();
+    // await flow.complete(code);
   }
 
-  // Method 4: Check CLI integration
-  console.log("\nMethod 4: CLI Integration Check");
-  const cliAuth = new Auth(); // Defaults to ~/.claude/credentials.json
+  // Method 5: Check if CLI is authenticated
+  console.log("\nMethod 5: Check CLI authentication");
+  const cliAuth = new Auth(); // Uses CLI default path
   
   if (await cliAuth.isValid()) {
-    console.log('✅ CLI credentials are valid');
-    console.log('📍 Path:', cliAuth.getCredentialsPath());
+    console.log('✅ CLI is authenticated');
+    console.log('📍 Credentials at:', cliAuth.getCredentialsPath());
   } else {
-    console.log('❌ No CLI credentials found');
-    console.log('   Run a query with .withAuth() to set them up');
+    console.log('❌ CLI not authenticated');
+    console.log('   Run setupAuth() to configure');
   }
+}
+
+// Helper function for CLI input
+function prompt(question: string): Promise<string> {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
 }
 
 main().catch(console.error);

@@ -97,4 +97,4 @@ export {
 
 export { AuthAnthropic };
 export { OAuthCredentials, validateCredentials, isValidCredentials } from './auth/validation.js';
-export { Auth, type AuthOptions, type LoginFlow } from './auth/auth.js';
+export { Auth, setupAuth, type AuthOptions, type AuthFlow } from './auth/auth.js';

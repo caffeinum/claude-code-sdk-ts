@@ -1,26 +1,46 @@
 import {
   AuthFileStorage,
   AuthAnthropic,
-} from "@instantlyeasy/claude-code-sdk-ts";
+} from "../src/index";
 import { createInterface } from "readline";
 
 async function main() {
   console.log("Claude Code SDK - Authentication Example\n");
 
   const authStorage = new AuthFileStorage("./credentials.json");
+  
+  // Helper function to get valid access token
+  async function getAccessToken() {
+    const info = await authStorage.get("anthropic");
+    if (!info || info.type !== "oauth") return null;
+    
+    // Check if access token is still valid
+    if (info.access && info.expires > Date.now()) {
+      return info.access;
+    }
+    
+    // Refresh the token
+    try {
+      const credentials = await AuthAnthropic.refresh(info.refresh);
+      await authStorage.set("anthropic", {
+        type: "oauth",
+        refresh: credentials.refresh,
+        access: credentials.access,
+        expires: credentials.expires,
+      });
+      return credentials.access;
+    } catch (error) {
+      console.error("❌ Failed to refresh token:", error.message);
+      return null;
+    }
+  }
 
   // Check if already authenticated
-  if (await AuthAnthropic.access(authStorage)) {
+  const existingToken = await getAccessToken();
+  if (existingToken) {
     console.log("✅ Already authenticated!");
-
-    // Show access token (first 20 chars for security)
-    try {
-      const token = await AuthAnthropic.access(authStorage);
-      console.log(`🔑 Access token: ${token?.substring(0, 20)}...`);
-      console.log("✅ Authentication working correctly!");
-    } catch (error) {
-      console.error("❌ Failed to get access token:", error.message);
-    }
+    console.log(`🔑 Access token: ${existingToken.substring(0, 20)}...`);
+    console.log("✅ Authentication working correctly!");
     return;
   }
 
@@ -61,7 +81,7 @@ async function main() {
     console.log("🔑 Credentials stored in " + authStorage.filepath);
 
     // Verify by getting access token
-    const token = await AuthAnthropic.access(authStorage);
+    const token = await getAccessToken();
     console.log(`🎉 Access token obtained: ${token?.substring(0, 20)}...`);
   } catch (error) {
     console.error("❌ Authentication failed:", error.message);

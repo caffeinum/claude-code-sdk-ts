@@ -1,16 +1,18 @@
-import { AuthAnthropic } from "@instantlyeasy/claude-code-sdk-ts";
+import { AuthFileStorage, AuthAnthropic } from "@instantlyeasy/claude-code-sdk-ts";
 import { createInterface } from "readline";
 
 async function main() {
   console.log("Claude Code SDK - Authentication Example\n");
 
+  const authStorage = new AuthFileStorage("./credentials.json");
+
   // Check if already authenticated
-  if (await AuthAnthropic.access()) {
+  if (await AuthAnthropic.access(authStorage)) {
     console.log("✅ Already authenticated!");
 
     // Show access token (first 20 chars for security)
     try {
-      const token = await AuthAnthropic.access();
+      const token = await AuthAnthropic.access(authStorage);
       console.log(`🔑 Access token: ${token?.substring(0, 20)}...`);
       console.log("✅ Authentication working correctly!");
     } catch (error) {
@@ -46,10 +48,10 @@ async function main() {
     await AuthAnthropic.exchange(code.trim(), verifier);
 
     console.log("✅ Authentication successful!");
-    console.log("🔑 Credentials stored in ~/.claude/credentials.json");
+    console.log("🔑 Credentials stored in " + authStorage.filepath);
 
     // Verify by getting access token
-    const token = await AuthAnthropic.access();
+    const token = await AuthAnthropic.access(authStorage);
     console.log(`🎉 Access token obtained: ${token?.substring(0, 20)}...`);
   } catch (error) {
     console.error("❌ Authentication failed:", error.message);

@@ -1,6 +1,6 @@
 import { InternalClient } from './_internal/client.js';
 import { AuthAnthropic } from './auth/anthropic.js';
-import { Auth } from './auth/index.js';
+import { AuthFileStorage } from './auth/index.js';
 import type { ClaudeCodeOptions, Message } from './types.js';
 
 /**
@@ -96,4 +96,4 @@ export {
 } from './enhanced/index.js';
 
 
-export { Auth, AuthAnthropic };
+export { AuthFileStorage, AuthAnthropic };

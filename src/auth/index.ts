@@ -1,50 +1,37 @@
 /* eslint-disable @typescript-eslint/no-namespace */
-import path from "path";
 import fs from "fs/promises";
-import { z } from "zod";
-import { homedir } from "os";
+import type { AuthInfo, AuthStorage } from "./storage";
 
-export namespace Auth {
-  export const Oauth = z.object({
-    type: z.literal("oauth"),
-    refresh: z.string(),
-    access: z.string(),
-    expires: z.number(),
-  });
+export class AuthFileStorage implements AuthStorage {
+  filepath: string;
 
-  export const Api = z.object({
-    type: z.literal("api"),
-    key: z.string(),
-  });
+  constructor(filepath: string) {
+    this.filepath = filepath;
+  }
 
-  export const Info = z.discriminatedUnion("type", [Oauth, Api]);
-  export type Info = z.infer<typeof Info>;
-
-  const filepath = path.join(homedir(), ".claude", "auth.json");
-
-  export async function get(providerID: string) {
-    const file = Bun.file(filepath);
+  async get(providerID: string) {
+    const file = Bun.file(this.filepath);
     return file
       .json()
       .catch(() => ({}))
-      .then((x) => x[providerID] as Info | undefined);
+      .then((x) => x[providerID] as AuthInfo | undefined);
   }
 
-  export async function all(): Promise<Record<string, Info>> {
-    const file = Bun.file(filepath);
+  async all(): Promise<Record<string, AuthInfo>> {
+    const file = Bun.file(this.filepath);
     return file.json().catch(() => ({}));
   }
 
-  export async function set(key: string, info: Info) {
-    const file = Bun.file(filepath);
-    const data = await all();
+  async set(key: string, info: AuthInfo) {
+    const file = Bun.file(this.filepath);
+    const data = await this.all();
     await Bun.write(file, JSON.stringify({ ...data, [key]: info }, null, 2));
     await fs.chmod(file.name!, 0o600);
   }
 
-  export async function remove(key: string) {
-    const file = Bun.file(filepath);
-    const data = await all();
+  async remove(key: string) {
+    const file = Bun.file(this.filepath);
+    const data = await this.all();
     delete data[key];
     await Bun.write(file, JSON.stringify(data, null, 2));
     await fs.chmod(file.name!, 0o600);

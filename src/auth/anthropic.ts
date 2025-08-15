@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 import { generatePKCE } from "@openauthjs/openauth/pkce"
-import { Auth } from "./index"
+import type { AuthStorage } from "./storage"
 
 export namespace AuthAnthropic {
   const CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
@@ -51,8 +51,8 @@ export namespace AuthAnthropic {
     }
   }
 
-  export async function access() {
-    const info = await Auth.get("anthropic")
+  export async function access(storage: AuthStorage) {
+    const info = await storage.get("anthropic")
     if (!info || info.type !== "oauth") return
     if (info.access && info.expires > Date.now()) return info.access
     const response = await fetch("https://console.anthropic.com/v1/oauth/token", {
@@ -68,7 +68,7 @@ export namespace AuthAnthropic {
     })
     if (!response.ok) return
     const json = await response.json()
-    await Auth.set("anthropic", {
+    await storage.set("anthropic", {
       type: "oauth",
       refresh: json.refresh_token as string,
       access: json.access_token as string,

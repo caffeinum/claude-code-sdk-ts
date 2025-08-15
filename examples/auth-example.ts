@@ -1,33 +1,57 @@
 import {
-  AuthFileStorage,
   AuthAnthropic,
+  OAuthCredentials,
+  validateCredentials,
 } from "@instantlyeasy/claude-code-sdk-ts";
 import { createInterface } from "readline";
+import * as fs from "fs/promises";
+import * as path from "path";
+
+const CREDENTIALS_FILE = "./credentials.json";
 
 async function main() {
   console.log("Claude Code SDK - Authentication Example\n");
 
-  const authStorage = new AuthFileStorage("./credentials.json");
-  
+  // Helper function to load credentials from file
+  async function loadCredentials(): Promise<Record<string, OAuthCredentials>> {
+    try {
+      const data = await fs.readFile(CREDENTIALS_FILE, "utf-8");
+      return JSON.parse(data);
+    } catch {
+      return {};
+    }
+  }
+
+  // Helper function to save credentials to file
+  async function saveCredentials(providerID: string, credentials: OAuthCredentials) {
+    const allCreds = await loadCredentials();
+    allCreds[providerID] = credentials;
+    await fs.writeFile(CREDENTIALS_FILE, JSON.stringify(allCreds, null, 2));
+    await fs.chmod(CREDENTIALS_FILE, 0o600);
+  }
+
   // Helper function to get valid access token
   async function getAccessToken() {
-    const info = await authStorage.get("anthropic");
-    if (!info || info.type !== "oauth") return null;
+    const allCreds = await loadCredentials();
+    const info = allCreds["anthropic"];
     
+    if (!info || info.type !== "oauth") return null;
+
     // Check if access token is still valid
     if (info.access && info.expires > Date.now()) {
       return info.access;
     }
-    
+
     // Refresh the token
     try {
       const credentials = await AuthAnthropic.refresh(info.refresh);
-      await authStorage.set("anthropic", {
+      const validatedCreds: OAuthCredentials = {
         type: "oauth",
         refresh: credentials.refresh,
         access: credentials.access,
         expires: credentials.expires,
-      });
+      };
+      await saveCredentials("anthropic", validatedCreds);
       return credentials.access;
     } catch (error) {
       console.error("❌ Failed to refresh token:", error.message);
@@ -70,15 +94,17 @@ async function main() {
     console.log("🔄 Exchanging code for tokens...");
     const credentials = await AuthAnthropic.exchange(code.trim(), verifier);
 
-    await authStorage.set("anthropic", {
+    const validatedCreds: OAuthCredentials = {
       type: "oauth",
       refresh: credentials.refresh,
       access: credentials.access,
       expires: credentials.expires,
-    });
+    };
+    
+    await saveCredentials("anthropic", validatedCreds);
 
     console.log("✅ Authentication successful!");
-    console.log("🔑 Credentials stored in " + authStorage.filepath);
+    console.log(`🔑 Credentials stored in ${path.resolve(CREDENTIALS_FILE)}`);
 
     // Verify by getting access token
     const token = await getAccessToken();

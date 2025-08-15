@@ -15,7 +15,9 @@ export namespace AuthAnthropic {
     url.searchParams.set("client_id", CLIENT_ID)
     url.searchParams.set("response_type", "code")
     url.searchParams.set("redirect_uri", "https://console.anthropic.com/oauth/code/callback")
-    url.searchParams.set("scope", "org:create_api_key user:profile user:inference")
+    const scopes = "org:create_api_key user:profile user:inference"
+    console.log('Requesting OAuth scopes:', scopes)
+    url.searchParams.set("scope", scopes)
     url.searchParams.set("code_challenge", pkce.challenge)
     url.searchParams.set("code_challenge_method", "S256")
     url.searchParams.set("state", pkce.verifier)
@@ -43,6 +45,10 @@ export namespace AuthAnthropic {
     })
     if (!result.ok) throw new ExchangeFailed()
     const json = await result.json()
+    
+    // Log full response to see what data we get
+    console.log('OAuth exchange response:', JSON.stringify(json, null, 2))
+    
     return {
       refresh: json.refresh_token as string,
       access: json.access_token as string,
@@ -64,6 +70,10 @@ export namespace AuthAnthropic {
     })
     if (!response.ok) throw new RefreshFailed()
     const json = await response.json()
+    
+    // Log full response to see what data we get
+    console.log('OAuth refresh response:', JSON.stringify(json, null, 2))
+    
     return {
       refresh: json.refresh_token as string,
       access: json.access_token as string,

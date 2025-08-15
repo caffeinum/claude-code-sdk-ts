@@ -1,4 +1,7 @@
-import { AuthFileStorage, AuthAnthropic } from "@instantlyeasy/claude-code-sdk-ts";
+import {
+  AuthFileStorage,
+  AuthAnthropic,
+} from "@instantlyeasy/claude-code-sdk-ts";
 import { createInterface } from "readline";
 
 async function main() {
@@ -45,7 +48,14 @@ async function main() {
 
   try {
     console.log("🔄 Exchanging code for tokens...");
-    await AuthAnthropic.exchange(code.trim(), verifier);
+    const credentials = await AuthAnthropic.exchange(code.trim(), verifier);
+
+    await authStorage.set("anthropic", {
+      type: "oauth",
+      refresh: credentials.refresh,
+      access: credentials.access,
+      expires: credentials.expires,
+    });
 
     console.log("✅ Authentication successful!");
     console.log("🔑 Credentials stored in " + authStorage.filepath);

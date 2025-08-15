@@ -15,6 +15,7 @@ import { Logger } from './logger.js';
 import { PermissionManager } from './permissions/manager.js';
 import { ConfigLoader } from './config/loader.js';
 import { RoleManager } from './roles/manager.js';
+import type { AuthOptions } from './auth/auth.js';
 
 /**
  * Fluent API for building Claude Code queries with chainable methods
@@ -52,6 +53,18 @@ export class QueryBuilder {
    */
   withModel(model: string): this {
     this.options.model = model;
+    return this;
+  }
+
+  /**
+   * Configure authentication (placeholder for future integration)
+   * @param options Authentication options or path to credentials file
+   * @note Currently auth is handled by the CLI. Use setupAuth() separately.
+   */
+  withAuth(_options?: AuthOptions | string): this {
+    // TODO: Full integration pending internal client updates
+    // For now, use setupAuth() to configure authentication
+    console.warn('withAuth() integration pending. Use setupAuth() for authentication.');
     return this;
   }
 

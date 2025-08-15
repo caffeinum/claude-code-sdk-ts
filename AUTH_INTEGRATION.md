@@ -4,7 +4,7 @@ This document describes the authentication module added to the Claude Code SDK, 
 
 ## How It Works
 
-The authentication module writes credentials to `~/.claude/credentials.json` by default - the same location used by the Claude CLI. This means:
+The authentication module writes credentials to `~/.claude/.credentials.json` by default - the same location used by the Claude CLI. This means:
 
 1. **Single Authentication**: Authenticate once, use everywhere (SDK and CLI)
 2. **CLI Integration**: The Claude CLI automatically uses these credentials
@@ -87,7 +87,7 @@ if (isValidCredentials(data)) {
 
 Users can choose where to store credentials:
 
-- **Default (Recommended)**: `~/.claude/credentials.json` - Integrates with Claude CLI
+- **Default (Recommended)**: `~/.claude/.credentials.json` - Integrates with Claude CLI
 - **Project-local**: `./.auth.json` - For project-specific auth (won't work with CLI)
 - **Custom path**: Any specified location
 
@@ -95,7 +95,7 @@ Users can choose where to store credentials:
 
 1. **Existing Credentials**: By default, the auth module will NOT overwrite existing credentials. Use `overwriteExisting: true` to replace them.
 
-2. **CLI Compatibility**: Only credentials stored in `~/.claude/credentials.json` will be automatically used by the Claude CLI.
+2. **CLI Compatibility**: Only credentials stored in `~/.claude/.credentials.json` will be automatically used by the Claude CLI.
 
 3. **Format**: The module automatically handles the CLI's credential format (wrapped in "anthropic" key).
 

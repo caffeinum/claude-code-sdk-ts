@@ -4,7 +4,7 @@ async function main() {
   console.log('Claude Code SDK - Integrated Authentication Example\n');
 
   // Method 1: Quick setup with interactive flow (integrates with CLI)
-  // This writes to ~/.claude/credentials.json by default
+  // This writes to ~/.claude/.credentials.json by default
   // await setupAuth(); 
   
   // Or explicitly specify options:

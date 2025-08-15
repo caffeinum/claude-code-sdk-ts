@@ -20,7 +20,7 @@ export interface LoginFlow {
 /**
  * Authentication manager for Claude Code SDK
  * 
- * By default, writes to ~/.claude/credentials.json to integrate with Claude CLI.
+ * By default, writes to ~/.claude/.credentials.json to integrate with Claude CLI.
  * This allows the CLI to use the same authentication.
  */
 export class Auth {
@@ -29,7 +29,7 @@ export class Auth {
   private overwriteExisting: boolean;
   
   // Default to Claude CLI's credentials location
-  private static readonly CLAUDE_CLI_CREDENTIALS = '~/.claude/credentials.json';
+  private static readonly CLAUDE_CLI_CREDENTIALS = '~/.claude/.credentials.json';
 
   constructor(options?: AuthOptions | string) {
     if (typeof options === 'string') {
@@ -180,7 +180,7 @@ export class Auth {
 /**
  * Interactive authentication setup
  * 
- * By default, writes to ~/.claude/credentials.json to integrate with Claude CLI.
+ * By default, writes to ~/.claude/.credentials.json to integrate with Claude CLI.
  * This means both the SDK and CLI will use the same authentication.
  */
 export async function setupAuth(options?: AuthOptions): Promise<void> {

@@ -1,4 +1,4 @@
-import { AuthAnthropic } from "../src/index";
+import { AuthAnthropic } from "@instantlyeasy/claude-code-sdk-ts";
 import { createInterface } from "readline";
 
 async function main() {

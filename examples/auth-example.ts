@@ -1,7 +1,7 @@
 import {
   AuthFileStorage,
   AuthAnthropic,
-} from "../src/index";
+} from "@instantlyeasy/claude-code-sdk-ts";
 import { createInterface } from "readline";
 
 async function main() {

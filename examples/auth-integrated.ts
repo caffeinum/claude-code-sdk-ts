@@ -3,8 +3,15 @@ import { claude, setupAuth, Auth } from '@instantlyeasy/claude-code-sdk-ts';
 async function main() {
   console.log('Claude Code SDK - Integrated Authentication Example\n');
 
-  // Method 1: Quick setup with interactive flow
-  // await setupAuth({ credentialsPath: './.auth.json' });
+  // Method 1: Quick setup with interactive flow (integrates with CLI)
+  // This writes to ~/.claude/credentials.json by default
+  // await setupAuth(); 
+  
+  // Or explicitly specify options:
+  // await setupAuth({ 
+  //   overwriteExisting: false,  // Don't overwrite if credentials exist
+  //   autoRefresh: true 
+  // });
 
   // Method 2: Use auth with fluent API
   try {

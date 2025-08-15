@@ -9,6 +9,7 @@ export interface AuthOptions {
   credentialsPath?: string;
   autoRefresh?: boolean;
   interactive?: boolean;
+  overwriteExisting?: boolean; // Explicit permission to overwrite existing credentials
 }
 
 export interface LoginFlow {
@@ -18,18 +19,30 @@ export interface LoginFlow {
 
 /**
  * Authentication manager for Claude Code SDK
+ * 
+ * By default, writes to ~/.claude/credentials.json to integrate with Claude CLI.
+ * This allows the CLI to use the same authentication.
  */
 export class Auth {
   private credentialsPath: string;
   private autoRefresh: boolean;
+  private overwriteExisting: boolean;
+  
+  // Default to Claude CLI's credentials location
+  private static readonly CLAUDE_CLI_CREDENTIALS = '~/.claude/credentials.json';
 
   constructor(options?: AuthOptions | string) {
     if (typeof options === 'string') {
       this.credentialsPath = this.resolvePath(options);
       this.autoRefresh = true;
+      this.overwriteExisting = false;
     } else {
-      this.credentialsPath = this.resolvePath(options?.credentialsPath || './.auth.json');
+      // Default to Claude CLI credentials path for seamless integration
+      this.credentialsPath = this.resolvePath(
+        options?.credentialsPath || Auth.CLAUDE_CLI_CREDENTIALS
+      );
       this.autoRefresh = options?.autoRefresh ?? true;
+      this.overwriteExisting = options?.overwriteExisting ?? false;
     }
   }
 
@@ -50,7 +63,11 @@ export class Auth {
     try {
       const data = await fs.readFile(this.credentialsPath, 'utf-8');
       const parsed = JSON.parse(data);
-      return validateCredentials(parsed);
+      
+      // Handle Claude CLI format (wrapped in "anthropic" key)
+      const creds = parsed.anthropic || parsed;
+      
+      return validateCredentials(creds);
     } catch {
       return null;
     }
@@ -60,9 +77,24 @@ export class Auth {
    * Save credentials to storage
    */
   private async saveCredentials(credentials: OAuthCredentials): Promise<void> {
+    // Check if credentials already exist
+    const existing = await this.loadCredentials();
+    if (existing && !this.overwriteExisting) {
+      throw new Error(
+        `Credentials already exist at ${this.credentialsPath}. ` +
+        `Use overwriteExisting: true to replace them, or use the existing credentials.`
+      );
+    }
+
     const dir = path.dirname(this.credentialsPath);
     await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(this.credentialsPath, JSON.stringify(credentials, null, 2));
+    
+    // Format for Claude CLI compatibility
+    const cliFormat = {
+      anthropic: credentials
+    };
+    
+    await fs.writeFile(this.credentialsPath, JSON.stringify(cliFormat, null, 2));
     await fs.chmod(this.credentialsPath, 0o600);
   }
 
@@ -147,17 +179,31 @@ export class Auth {
 
 /**
  * Interactive authentication setup
+ * 
+ * By default, writes to ~/.claude/credentials.json to integrate with Claude CLI.
+ * This means both the SDK and CLI will use the same authentication.
  */
 export async function setupAuth(options?: AuthOptions): Promise<void> {
   const auth = new Auth(options);
+  const isCliPath = auth.getCredentialsPath().includes('.claude');
 
   // Check if already authenticated
-  if (await auth.isValid()) {
+  const existing = await auth.isValid();
+  if (existing) {
     console.log('✅ Already authenticated!');
+    if (isCliPath) {
+      console.log('📍 Using Claude CLI credentials at:', auth.getCredentialsPath());
+    }
     return;
   }
 
-  console.log('🔐 Starting authentication setup...\n');
+  console.log('🔐 Starting authentication setup...');
+  if (isCliPath) {
+    console.log('📍 Will save to Claude CLI credentials:', auth.getCredentialsPath());
+    console.log('   Both SDK and CLI will use these credentials.\n');
+  } else {
+    console.log('📍 Will save to:', auth.getCredentialsPath(), '\n');
+  }
 
   // Start login flow
   const { url, complete } = await auth.login();

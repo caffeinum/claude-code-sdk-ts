@@ -1,10 +1,14 @@
 # Authentication Integration Guide
 
-This document describes the authentication module added to the Claude Code SDK, which provides programmatic OAuth authentication without requiring the Claude CLI.
+This document describes the authentication module added to the Claude Code SDK, which provides programmatic OAuth authentication that integrates seamlessly with the Claude CLI.
 
-## Current Status
+## How It Works
 
-The authentication module is implemented and functional as a standalone component. However, direct integration with the fluent API (`claude().withAuth()`) requires additional work because the SDK currently delegates all authentication to the Claude CLI.
+The authentication module writes credentials to `~/.claude/credentials.json` by default - the same location used by the Claude CLI. This means:
+
+1. **Single Authentication**: Authenticate once, use everywhere (SDK and CLI)
+2. **CLI Integration**: The Claude CLI automatically uses these credentials
+3. **No Token Injection Needed**: The SDK works through the CLI which reads the credentials
 
 ## Available Components
 
@@ -83,9 +87,17 @@ if (isValidCredentials(data)) {
 
 Users can choose where to store credentials:
 
-- **Project-local**: `./.auth.json` (gitignored, per-project)
-- **User-global**: `~/.claude/credentials.json` (shared across projects)
+- **Default (Recommended)**: `~/.claude/credentials.json` - Integrates with Claude CLI
+- **Project-local**: `./.auth.json` - For project-specific auth (won't work with CLI)
 - **Custom path**: Any specified location
+
+### Important Notes
+
+1. **Existing Credentials**: By default, the auth module will NOT overwrite existing credentials. Use `overwriteExisting: true` to replace them.
+
+2. **CLI Compatibility**: Only credentials stored in `~/.claude/credentials.json` will be automatically used by the Claude CLI.
+
+3. **Format**: The module automatically handles the CLI's credential format (wrapped in "anthropic" key).
 
 ## Usage Examples
 
